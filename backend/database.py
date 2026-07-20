@@ -24,6 +24,17 @@ def init_database() -> None:
                 id UUID PRIMARY KEY, user_id UUID NOT NULL REFERENCES users(id), refresh_jti UUID NOT NULL UNIQUE,
                 created_at TIMESTAMPTZ NOT NULL, expires_at TIMESTAMPTZ NOT NULL,
                 refresh_expires_at TIMESTAMPTZ NOT NULL, revoked_at TIMESTAMPTZ)""")
+            cursor.execute("""CREATE TABLE IF NOT EXISTS conversations (
+                id UUID PRIMARY KEY, user_id UUID NOT NULL REFERENCES users(id),
+                agent_id TEXT NOT NULL, title TEXT,
+                created_at TIMESTAMPTZ NOT NULL, updated_at TIMESTAMPTZ NOT NULL)""")
+            cursor.execute("""CREATE TABLE IF NOT EXISTS messages (
+                id UUID PRIMARY KEY, conversation_id UUID NOT NULL REFERENCES conversations(id),
+                role TEXT NOT NULL CHECK (role IN ('user', 'assistant', 'system', 'tool')),
+                content TEXT NOT NULL, tool_calls JSONB,
+                created_at TIMESTAMPTZ NOT NULL)""")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_messages_conversation ON messages (conversation_id, created_at)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_conversations_user ON conversations (user_id, updated_at DESC)")
             now = datetime.now(timezone.utc)
             cursor.execute("DELETE FROM revoked_tokens WHERE expires_at <= %s", (now,))
             cursor.execute("DELETE FROM auth_sessions WHERE expires_at <= %s", (now,))
